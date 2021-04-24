@@ -9,13 +9,8 @@ PlayState.init = function() {
 };
 
 PlayState.update = function() {
-  if (this.keys.left.isDown) {
-    this.hero.move(-1);
-  } else if (this.keys.right.isDown) {
-    this.hero.move(1);
-  } else {
-    this.hero.move(0);
-  }
+  this._handleCollisions();
+  this._handleInput();
 };
 
 // load game assets
@@ -53,18 +48,41 @@ PlayState.create = function (){
 };
 
 PlayState._loadLevel = function(data){
+  this.platforms = this.game.add.group();
   data.platforms.forEach(this._spawnPlatform, this);
   this._spawnCharacters({hero: data.hero});
+  const GRAVITY = 1200;
+  this.game.physics.arcade.gravity.y = GRAVITY;
 };
 
 PlayState._spawnPlatform = function(platform) {
-  this.game.add.sprite(platform.x, platform.y, platform.image);
+  let sprite = this.platforms.create(
+    platform.x, platform.y, platform.image
+  );
+  this.game.physics.enable(sprite);
+  sprite.body.allowGravity = false;
+  sprite.body.immovable = true;
+};
+
+PlayState._handleCollisions = function () {
+  this.game.physics.arcade.collide(this.hero, this.platforms);
+};
+
+PlayState._handleInput = function() {
+  if (this.keys.left.isDown) {
+    this.hero.move(-1);
+  } else if (this.keys.right.isDown) {
+    this.hero.move(1);
+  } else {
+    this.hero.move(0);
+  }
 };
 
 PlayState._spawnCharacters = function(data) {
   this.hero = new Hero(this.game, data.hero.x, data.hero.y);
   this.game.add.existing(this.hero);
 };
+
 
 window.onload = function() {
   let game = new Phaser.Game(960, 600, Phaser.AUTO, 'game');
