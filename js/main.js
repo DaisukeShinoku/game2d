@@ -5,7 +5,14 @@ PlayState.init = function() {
   this.keys = this.game.input.keyboard.addKeys({
     left: Phaser.KeyCode.LEFT,
     right: Phaser.KeyCode.RIGHT,
+    up: Phaser.KeyCode.UP
   });
+  this.keys.up.onDown.add(function(){
+    let didJump = this.hero.jump();
+    if(didJump) {
+      this.sfx.jump.play();
+    }
+  }, this)
 };
 
 PlayState.update = function() {
@@ -24,6 +31,9 @@ PlayState.preload = function (){
   this.game.load.image('grass:2x1', 'images/grass_2x1.png');
   this.game.load.image('grass:1x1', 'images/grass_1x1.png');
   this.game.load.image('hero', 'images/hero_stopped.png');
+  this.game.load.audio('sfx:jump', 'audio/jump.wav');
+  this.game.load.audio('sfx:coin', 'audio/coin.wav');
+  this.game.load.spritesheet('coin', 'images/coin_animated.png', 22, 22);
 };
 
 function Hero(game, x, y) {
@@ -41,16 +51,32 @@ Hero.prototype.move = function(direction) {
   this.body.velocity.x = direction * SPEED;
 }
 
+Hero.prototype.jump = function() {
+  const JUMP_SPEED = 600;
+  let canJump = this.body.touching.down;
+  if (canJump) {
+    this.body.velocity.y = -JUMP_SPEED;
+  }
+
+  return canJump;
+}
+
 // create game entities & set up world
 PlayState.create = function (){
+  this.sfx = {
+    jump: this.game.add.audio('sfx:jump'),
+    coin: this.game.add.audio('sfx:coin')
+  };
   this.game.add.image(0, 0, 'background');
   this._loadLevel(this.game.cache.getJSON('level:1'));
 };
 
 PlayState._loadLevel = function(data){
   this.platforms = this.game.add.group();
+  this.coins = this.game.add.group();
   data.platforms.forEach(this._spawnPlatform, this);
-  this._spawnCharacters({hero: data.hero});
+  this._spawnCharacters({hero: data.hero, spiders: data.spiders});
+  data.coins.forEach(this._spawnCoin, this);
   const GRAVITY = 1200;
   this.game.physics.arcade.gravity.y = GRAVITY;
 };
@@ -66,6 +92,7 @@ PlayState._spawnPlatform = function(platform) {
 
 PlayState._handleCollisions = function () {
   this.game.physics.arcade.collide(this.hero, this.platforms);
+  this.game.physics.arcade.overlap(this.hero, this.coins, this._onHeroVsCoin, null, this);
 };
 
 PlayState._handleInput = function() {
@@ -83,6 +110,19 @@ PlayState._spawnCharacters = function(data) {
   this.game.add.existing(this.hero);
 };
 
+PlayState._spawnCoin = function(coin) {
+  let sprite = this.coins.create(coin.x, coin.y, 'coin');
+  sprite.anchor.set(0.5, 0.5);
+  sprite.animations.add('rotate', [0, 1, 2, 1], 6, true);
+  sprite.animations.play('rotate');
+  this.game.physics.enable(sprite);
+  sprite.body.allowGravity = false;
+};
+
+PlayState._onHeroVsCoin = function (hero, coin) {
+  this.sfx.coin.play();
+  coin.kill();
+}
 
 window.onload = function() {
   let game = new Phaser.Game(960, 600, Phaser.AUTO, 'game');
